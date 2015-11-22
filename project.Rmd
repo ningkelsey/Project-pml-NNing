@@ -1,0 +1,174 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+
+#Peer Assessment
+
+
+By Ning Ning
+
+This assignment makes use of data measured by accelerometers on the belt, forearm, 
+arm and dumbell of 6 participants while they were doing barbell lifts. They were asked to perform
+barbell lifts correctly and incorrectly in 5 different ways. The goal of this project is to quantify how well they do it. 
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+###Data Analysis
+
+The 6 participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions ("class" in dataset): exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. The goal of this project is to predict the manner in which they did the lifting.
+
+1.Load the data and libraries:
+
+```{r loaddata, echo=TRUE} 
+library(caret)
+library(rpart)
+library(randomForest)
+library(ggplot2)
+library(knitr)
+library(rattle)
+setwd("~/r/pml")
+url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+#download.file(url,destfile="pml-training.csv",method="curl")
+url<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#download.file(url,destfile="pml-testing.csv",method="curl")
+train<-read.csv("pml-training.csv",na.strings=c("NA","#DIV/0!",""))
+test<-read.csv("pml-testing.csv",na.strings=c("NA","#DIV/0!",""))
+```
+
+2.Data Partitioning
+
+The training dataset will be partitioned into two parts: 60% goes to training set, 40% goes to testing set.
+
+```{r partion, echo=TRUE}
+int<-createDataPartition(train$classe,p=0.6,list=FALSE)
+dtrain<-train[int,]
+dtest<-train[-int,]
+dim(dtrain);dim(dtest)
+```
+
+3.Data Cleaning
+
+In order to increase the accuracy of the prediction model, data should be cleaned before the fitting procedure: 
+
++ Exclude the predictors which are not useful in the prediction model (such as X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window):
+
+```{r rcol, echo=TRUE}
+dtrain<-dtrain[,-c(1:7)]
+dim(dtrain)
+```
+
++ Exclude the predictors with near zero variance:
+
+```{r nzv,echo=TRUE}
+dtint<-dtrain
+nzv<-nearZeroVar(dtrain,saveMetrics=TRUE)
+dtrain<-dtrain[,nzv$nzv==FALSE]
+dtrain$classe<-dtint$classe
+dim(dtrain)
+```
+
++ Exclude the predictors with more than 60% NAs:
+
+```{r rna, echo=TRUE}
+dt<-dtrain
+vec<-numeric(1)
+n=0
+for (i in 1:ncol(dt)) {
+  if (sum(is.na(dtrain[,i])) / nrow(dtrain) > 0.6) {
+    n=n+1
+    vec[n] <- i
+  }
+}
+for (i in n) {
+   dtrain<-dtrain[,-vec]
+}
+
+int<-colnames(dtrain)
+dtest<-dtest[int]
+dim(dtrain);dim(dtest)
+```
+
++ Clean test dataset accordingly:
+
+```{r testcl, echo=TRUE}
+int<-colnames(dtrain[,-53])
+test<-test[int]
+dim(test)
+```
+
+###Prediction Model
+
+Three method will be employed in this project to make prediction: Decision trees, random forests and generalized boosted regression.
+
++ Prediction Model with Decision Trees Method
+
+```{r dt, echo=TRUE}
+set.seed(31415)
+fit1<-train(classe~.,data=dtrain,method="rpart")
+print(fit1)
+fancyRpartPlot(fit1$finalModel)
+```
+
+Now, we test this model with test dataset:
+
+```{r fit1test, echo=TRUE}
+test1<-predict(fit1,newdata=dtest)
+cm1<-confusionMatrix(test1,dtest$classe)
+print(cm1)
+```
+
+We obtain 48.5% of accuracy which is quite low. It seems that this method is probably not the optimal. So we proceed to the second method, which is random forest method. 
+
+
++ Prediction Model with Random Forests Method
+
+```{r dt2, echo=TRUE}
+set.seed(31415)
+fit2<-randomForest(classe~.,data=dtrain)
+print(fit2)
+plot(fit2,main = "Overall error")
+legend("top",colnames(fit2$err.rate),col=1:6,cex=0.8,fill=1:6)
+```
+
+As we are using the out-of-bag error estimate, we do not need a cross validation set aside test set. The OOB estimate of error rate is 0.57%, which suggests that the model has 99.43% out of sample accuracy for the traning set. We can see from the overall error plot that the prediction error between classes is veryquite balanced.
+
+Now, we test this model with test dataset:
+
+```{r fit1test2, echo=TRUE}
+test2<-predict(fit2,newdata=dtest)
+cm2<-confusionMatrix(test2,dtest$classe)
+print(cm2)
+plot(cm2$table, col = cm2$byClass, main = paste("Decision Tree Confusion Matrix: Accuracy =", round(cm2$overall['Accuracy'],3)))
+```
+
+We obtain 99.4% of accuracy, which is quite good. We proceed to the third method, which is generalized boosted regression method, to see if we can get even better prediction. 
+
++ Prediction Model with Generalized Boosted Regression Method
+
+```{r dt3, echo=TRUE}
+set.seed(31415)
+control<-trainControl(method="repeatedcv",number=5,repeats=1)
+fit3<-train(classe~.,data=dtrain,method="gbm",trControl=control,verbose=FALSE)
+print(fit3)
+```
+
+Now,we test this model with test dataset:
+
+```{r fit1test3, echo=TRUE}
+test3<-predict(fit3,newdata=dtest)
+cm3<-confusionMatrix(test3,dtest$classe)
+print(cm3)
+plot(cm3$table, col = cm3$byClass, main = paste("Decision Tree Confusion Matrix: Accuracy =", round(cm3$overall['Accuracy'],3)))
+plot(fit3)
+```
+
+We obtain 96.2% of accuracy. We can see from the resampling profile plot that the estimates of performance and the tuning parameters are not quite balanced. 
+
+###Conclusion
+
+Based on the accuracy of the model on the test set, we choose the highest one which is provided by the model with random forest method. We therefore employ this method to predict the 20 testing sets.
+
+```{r testing,echo=TRUE}
+prediction<-predict(fit2, newdata=test, type="class")
+prediction
+```
