@@ -74,19 +74,12 @@ library(rpart)
 library(randomForest)
 library(ggplot2)
 library(knitr)
-library(rattle)</code></pre>
-<pre><code>## Warning: Failed to load RGtk2 dynamic library, attempting to install it.</code></pre>
-<pre><code>## Please install GTK+ from http://r.research.att.com/libs/GTK_2.24.17-X11.pkg
-## If the package still does not load, please ensure that GTK+ is installed and that it is on your PATH environment variable
-## IN ANY CASE, RESTART R BEFORE TRYING TO LOAD THE PACKAGE AGAIN
-## Rattle: A free graphical interface for data mining with R.
-## Version 4.0.0 Copyright (c) 2006-2015 Togaware Pty Ltd.
-## Type 'rattle()' to shake, rattle, and roll your data.</code></pre>
-<pre class="r"><code>setwd(&quot;~/r/pml&quot;)
+library(rattle)
+setwd(&quot;~/r/pml&quot;)
 url&lt;-&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
-#download.file(url,destfile=&quot;pml-training.csv&quot;,method=&quot;curl&quot;)
+download.file(url,destfile=&quot;pml-training.csv&quot;,method=&quot;curl&quot;)
 url&lt;-&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
-#download.file(url,destfile=&quot;pml-testing.csv&quot;,method=&quot;curl&quot;)
+download.file(url,destfile=&quot;pml-testing.csv&quot;,method=&quot;curl&quot;)
 train&lt;-read.csv(&quot;pml-training.csv&quot;,na.strings=c(&quot;NA&quot;,&quot;#DIV/0!&quot;,&quot;&quot;))
 test&lt;-read.csv(&quot;pml-testing.csv&quot;,na.strings=c(&quot;NA&quot;,&quot;#DIV/0!&quot;,&quot;&quot;))</code></pre>
 <p>2.Data Partitioning</p>
